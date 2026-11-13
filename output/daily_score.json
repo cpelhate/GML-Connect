@@ -1,0 +1,41 @@
+{
+  "vehicle_id": "TRUCK-DEMO",
+  "date": "2023-03-15",
+  "source_file": "accelerometer_data.csv",
+  "threshold_ms2": -2.5,
+  "cornering_threshold_ms2": 2.5,
+  "samples": {
+    "total": 10,
+    "valid": 10,
+    "invalid": 0
+  },
+  "events": [
+    {
+      "type": "HARSH_BRAKING",
+      "timestamp": 1678880005,
+      "peak_acc_y_ms2": -3.45,
+      "duration_samples": 1
+    }
+  ],
+  "summary": {
+    "harsh_braking_count": 1,
+    "harsh_cornering_count": 0
+  },
+  "score": {
+    "value": 90,
+    "max": 100,
+    "rule": "100 - 10 x freinages violents - 5 x virages brusques, minimum 0"
+  },
+  "data_volume": {
+    "hypotheses": {
+      "sampling_hz": 100,
+      "driving_hours_per_day": 10,
+      "bytes_per_raw_line": 29
+    },
+    "raw_lines_per_day": 3600000,
+    "raw_bytes_per_day": 104400000,
+    "aggregate_bytes": 591,
+    "aggregate_bytes_note": "taille du rapport hors bloc data_volume",
+    "reduction_ratio": 176650
+  }
+}
