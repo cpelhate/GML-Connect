@@ -143,10 +143,9 @@ def main(argv=None):
     else:
         logger.info(
             "Moteur Safety : OK - score %d/%d, %d freinage(s) violent(s), "
-            "%d virage(s) brusque(s), %d ligne(s) invalide(s)",
+            "%d ligne(s) invalide(s)",
             safety["score"]["value"], safety["score"]["max"],
             safety["summary"]["harsh_braking_count"],
-            safety["summary"]["harsh_cornering_count"],
             safety["samples"]["invalid"],
         )
 

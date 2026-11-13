@@ -1,4 +1,4 @@
-"""Tests automatisés du moteur Safety (T5 à T7, T9, T11, T12, T15, T16).
+"""Tests automatisés du moteur Safety (T5 à T7, T9, T11, T15, T16).
 
 Lancement depuis la racine du dépôt :
     python -m unittest discover tests
@@ -84,18 +84,14 @@ class TestSafetyAnnexe3(SafetyTestCase):
         self.run_engine(DATA / "accelerometer_data.csv")
         written = json.loads(self.output.read_text(encoding="utf-8"))
         for field in ("vehicle_id", "date", "source_file", "threshold_ms2",
-                      "cornering_threshold_ms2", "samples", "events",
-                      "summary", "score", "data_volume"):
+                      "samples", "events", "summary", "score", "data_volume"):
             self.assertIn(field, written)
         self.assertEqual(written["vehicle_id"], "TRUCK-DEMO")
         self.assertEqual(written["date"], "2023-03-15")
         self.assertEqual(written["source_file"], "accelerometer_data.csv")
         self.assertEqual(written["threshold_ms2"], -2.5)
         self.assertEqual(written["samples"], {"total": 10, "valid": 10, "invalid": 0})
-        self.assertEqual(
-            written["summary"],
-            {"harsh_braking_count": 1, "harsh_cornering_count": 0},
-        )
+        self.assertEqual(written["summary"], {"harsh_braking_count": 1})
         self.assertEqual(written["score"]["value"], 90)
         self.assertEqual(written["score"]["max"], 100)
 
@@ -119,30 +115,16 @@ class TestSafetyAnnexe3(SafetyTestCase):
 class TestSafetyDonneesEtendues(SafetyTestCase):
     """Données supplémentaires (data/demo_extended)."""
 
-    def test_t11_virages_brusques_et_score_de_70(self):
+    def test_t11_freinage_sur_trois_echantillons(self):
         report, records = self.run_engine(EXTENDED / "accelerometer_data.csv")
-        self.assertEqual(events_of(report, "HARSH_CORNERING"), [
-            {"type": "HARSH_CORNERING", "timestamp": 1678880012,
-             "peak_acc_x_ms2": 3.10, "duration_samples": 2},
-            {"type": "HARSH_CORNERING", "timestamp": 1678880019,
-             "peak_acc_x_ms2": -2.95, "duration_samples": 1},
-        ])
-        self.assertEqual(events_of(report, "HARSH_BRAKING"), [
+        self.assertEqual(report["events"], [
             {"type": "HARSH_BRAKING", "timestamp": 1678880005,
              "peak_acc_y_ms2": -3.45, "duration_samples": 1},
             {"type": "HARSH_BRAKING", "timestamp": 1678880015,
              "peak_acc_y_ms2": -4.10, "duration_samples": 3},
         ])
-        self.assertEqual(report["score"]["value"], 70)
-        self.assertIn(
-            "1678880012 virage brusque : acc_x = 3.10 m/s² (seuil ±2.5)",
-            messages(records, "ALERT SAFETY"),
-        )
-
-    def test_t12_bruit_lateral_ignore(self):
-        path = self.write_csv(["1678880011,1.20,-0.20,9.80"])
-        report, _ = self.run_engine(path)
-        self.assertEqual(report["events"], [])
+        self.assertEqual(report["score"]["value"], 80)
+        self.assertEqual(len(messages(records, "ALERT SAFETY")), 2)
 
 
 class TestSafetyRobustesse(SafetyTestCase):
