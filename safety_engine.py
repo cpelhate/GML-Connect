@@ -116,8 +116,9 @@ def _data_volume(aggregate_bytes):
 def run_safety(csv_path, output_path, vehicle_id="TRUCK-DEMO"):
     """Analyse le CSV de l'accéléromètre, écrit daily_score.json, renvoie le rapport.
 
-    Lève SafetyError si le fichier est absent, vide ou mal structuré. Une
-    ligne invalide, elle, est ignorée et comptée : le traitement continue.
+    Lève SafetyError si le fichier est absent, vide, mal structuré ou sans
+    aucune mesure valide. Une ligne invalide isolée, elle, est ignorée et
+    comptée : le traitement continue.
     """
     csv_path = Path(csv_path)
     output_path = Path(output_path)
@@ -182,6 +183,11 @@ def run_safety(csv_path, output_path, vehicle_id="TRUCK-DEMO"):
                 close(finished)
     except FileNotFoundError:
         raise SafetyError(f"Fichier introuvable : {csv_path.as_posix()}") from None
+
+    # Aucune mesure exploitable : pas de score. Un capteur en panne ne doit
+    # jamais produire un score parfait de 100/100.
+    if valid == 0:
+        raise SafetyError("Aucune mesure exploitable : score non calculé")
 
     # Fin de fichier : un événement encore en cours est clôturé.
     close(braking)

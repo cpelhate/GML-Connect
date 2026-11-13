@@ -1,4 +1,4 @@
-"""Tests automatisés du moteur Safety (T5 à T7, T9, T11, T15, T16).
+"""Tests automatisés du moteur Safety (T5 à T7, T9, T11, T15 à T18).
 
 Lancement depuis la racine du dépôt :
     python -m unittest discover tests
@@ -213,6 +213,16 @@ class TestSafetyRobustesse(SafetyTestCase):
         report, _ = self.run_engine(path)
         self.assertEqual(report["samples"]["invalid"], 1)
         self.assertEqual(report["summary"]["harsh_braking_count"], 1)
+
+    def test_t18_aucune_mesure_valide_pas_de_score(self):
+        path = self.write_csv(["abc,0.10,-3.00,9.80", "1678880001,0.10"])
+        # assertLogs capture les deux avertissements de lignes invalides.
+        with self.assertLogs("gml.safety", level="WARNING"):
+            with self.assertRaises(safety_engine.SafetyError) as context:
+                safety_engine.run_safety(path, self.output)
+        self.assertIn("Aucune mesure exploitable", str(context.exception))
+        # Aucun rapport n'est écrit : on ne transmet jamais de score sans mesure.
+        self.assertFalse(self.output.exists())
 
 
 if __name__ == "__main__":
