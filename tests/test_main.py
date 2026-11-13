@@ -112,7 +112,7 @@ class TestMain(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(output.count("[ALERT ZFE]"), 2)
         self.assertEqual(output.count("[INFO ZFE]"), 1)
-        self.assertEqual(self.read_score()["score"]["value"], 70)
+        self.assertEqual(self.read_score()["score"]["value"], 80)
 
 
 if __name__ == "__main__":

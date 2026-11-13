@@ -3,7 +3,6 @@
   "date": "2023-03-15",
   "source_file": "accelerometer_data.csv",
   "threshold_ms2": -2.5,
-  "cornering_threshold_ms2": 2.5,
   "samples": {
     "total": 10,
     "valid": 10,
@@ -14,17 +13,17 @@
       "type": "HARSH_BRAKING",
       "timestamp": 1678880005,
       "peak_acc_y_ms2": -3.45,
+      "peak_timestamp": 1678880005,
       "duration_samples": 1
     }
   ],
   "summary": {
-    "harsh_braking_count": 1,
-    "harsh_cornering_count": 0
+    "harsh_braking_count": 1
   },
   "score": {
     "value": 90,
     "max": 100,
-    "rule": "100 - 10 x freinages violents - 5 x virages brusques, minimum 0"
+    "rule": "100 - 10 x nombre de freinages violents, minimum 0"
   },
   "data_volume": {
     "hypotheses": {
@@ -34,8 +33,8 @@
     },
     "raw_lines_per_day": 3600000,
     "raw_bytes_per_day": 104400000,
-    "aggregate_bytes": 591,
+    "aggregate_bytes": 548,
     "aggregate_bytes_note": "taille du rapport hors bloc data_volume",
-    "reduction_ratio": 176650
+    "reduction_ratio": 190511
   }
 }

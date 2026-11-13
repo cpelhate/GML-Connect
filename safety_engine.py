@@ -1,9 +1,8 @@
 """Moteur Safety (Physics) - Mission 2 : boîte noire télématique.
 
-Ce module lit les mesures brutes de l'accéléromètre et en extrait les
-micro-comportements exigés par l'assureur :
-  - freinage violent : forte décélération sur l'axe longitudinal (acc_y) ;
-  - virage brusque   : forte accélération sur l'axe latéral (acc_x).
+Ce module lit les mesures brutes de l'accéléromètre et en extrait le
+micro-comportement démontré par le POC : le freinage violent, une forte
+décélération sur l'axe longitudinal (acc_y).
 
 Les mesures brutes ne quittent jamais la tablette. Seul un petit fichier
 agrégé, daily_score.json, est destiné à être transmis : c'est ce qui évite
@@ -13,6 +12,7 @@ de saturer le forfait 4G (contrainte C5).
 import csv
 import json
 import logging
+import math
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -22,11 +22,9 @@ logging.addLevelName(ALERT_SAFETY, "ALERT SAFETY")
 
 # --- Paramètres (ajustables sans toucher à l'algorithme) --------------------
 THRESHOLD_MS2 = -2.5            # freinage violent si acc_y < -2.5 m/s² (RG-S3)
-CORNERING_THRESHOLD_MS2 = 2.5   # virage brusque si |acc_x| > 2.5 m/s²
 
 SCORE_MAX = 100
 BRAKING_PENALTY = 10            # points retirés par freinage violent
-CORNERING_PENALTY = 5           # points retirés par virage brusque
 
 # Hypothèses du calcul de volume (question 3 de la vidéo).
 SAMPLING_HZ = 100               # Annexe 1 : 100 points par seconde
@@ -61,9 +59,17 @@ def _parse_row(row):
     values = []
     for name, raw in zip(EXPECTED_HEADER, row):
         try:
-            values.append(int(raw) if name == "timestamp" else float(raw))
+            number = float(raw)
         except ValueError:
             raise ValueError(f"{name} non numérique") from None
+        # « nan » et « inf » sont acceptés par float() : on les refuse.
+        if not math.isfinite(number):
+            raise ValueError(f"{name} non fini")
+        # À 100 Hz, l'horodatage a des décimales (1678880000.01).
+        # Un horodatage entier reste un entier dans le JSON (1678880005).
+        if name == "timestamp" and number.is_integer():
+            number = int(number)
+        values.append(number)
     return tuple(values)
 
 
@@ -81,10 +87,16 @@ def _track(current, timestamp, value, exceeded):
     if exceeded:
         if current is None:
             # Début d'un nouvel événement.
-            return {"timestamp": timestamp, "peak": value, "duration_samples": 1}, None
+            return {
+                "timestamp": timestamp,
+                "peak": value,
+                "peak_timestamp": timestamp,
+                "duration_samples": 1,
+            }, None
         current["duration_samples"] += 1
         if abs(value) > abs(current["peak"]):
             current["peak"] = value  # le pic est la valeur la plus forte
+            current["peak_timestamp"] = timestamp
         return current, None
     return None, current
 
@@ -110,8 +122,9 @@ def _data_volume(aggregate_bytes):
 def run_safety(csv_path, output_path, vehicle_id="TRUCK-DEMO"):
     """Analyse le CSV de l'accéléromètre, écrit daily_score.json, renvoie le rapport.
 
-    Lève SafetyError si le fichier est absent, vide ou mal structuré. Une
-    ligne invalide, elle, est ignorée et comptée : le traitement continue.
+    Lève SafetyError si le fichier est absent, vide, mal structuré ou sans
+    aucune mesure valide. Une ligne invalide isolée, elle, est ignorée et
+    comptée : le traitement continue.
     """
     csv_path = Path(csv_path)
     output_path = Path(output_path)
@@ -119,28 +132,22 @@ def run_safety(csv_path, output_path, vehicle_id="TRUCK-DEMO"):
     total = valid = invalid = 0
     first_timestamp = None
     events = []
-    braking = None    # freinage en cours, ou None
-    cornering = None  # virage en cours, ou None
+    braking = None  # freinage en cours, ou None
 
-    def close(event, kind):
-        """Enregistre un événement terminé et émet son log (RG-S6)."""
+    def close(event):
+        """Enregistre un freinage terminé et émet son log (RG-S6)."""
         if event is None:
             return
-        if kind == "HARSH_BRAKING":
-            peak_key, label, axis = "peak_acc_y_ms2", "freinage violent", "acc_y"
-            threshold = f"{THRESHOLD_MS2}"
-        else:
-            peak_key, label, axis = "peak_acc_x_ms2", "virage brusque", "acc_x"
-            threshold = f"±{CORNERING_THRESHOLD_MS2}"
         events.append({
-            "type": kind,
+            "type": "HARSH_BRAKING",
             "timestamp": event["timestamp"],  # horodatage du début de l'événement
-            peak_key: event["peak"],
+            "peak_acc_y_ms2": event["peak"],
+            "peak_timestamp": event["peak_timestamp"],  # instant du pic
             "duration_samples": event["duration_samples"],
         })
         logger.log(
-            ALERT_SAFETY, "%s %s : %s = %.2f m/s² (seuil %s)",
-            event["timestamp"], label, axis, event["peak"], threshold,
+            ALERT_SAFETY, "%s freinage violent : acc_y = %.2f m/s² (seuil %s)",
+            event["timestamp"], event["peak"], THRESHOLD_MS2,
         )
 
     try:
@@ -161,7 +168,7 @@ def run_safety(csv_path, output_path, vehicle_id="TRUCK-DEMO"):
                     continue  # ligne vide, par exemple en fin de fichier
                 total += 1
                 try:
-                    timestamp, acc_x, acc_y, _ = _parse_row(row)
+                    timestamp, _, acc_y, _ = _parse_row(row)
                 except ValueError as error:
                     invalid += 1
                     logger.warning(
@@ -180,29 +187,20 @@ def run_safety(csv_path, output_path, vehicle_id="TRUCK-DEMO"):
                 braking, finished = _track(
                     braking, timestamp, acc_y, acc_y < THRESHOLD_MS2
                 )
-                close(finished, "HARSH_BRAKING")
-
-                cornering, finished = _track(
-                    cornering, timestamp, acc_x,
-                    abs(acc_x) > CORNERING_THRESHOLD_MS2,
-                )
-                close(finished, "HARSH_CORNERING")
+                close(finished)
     except FileNotFoundError:
         raise SafetyError(f"Fichier introuvable : {csv_path.as_posix()}") from None
 
-    # Fin de fichier : un événement encore en cours est clôturé.
-    close(braking, "HARSH_BRAKING")
-    close(cornering, "HARSH_CORNERING")
-    events.sort(key=lambda event: event["timestamp"])
+    # Aucune mesure exploitable : pas de score. Un capteur en panne ne doit
+    # jamais produire un score parfait de 100/100.
+    if valid == 0:
+        raise SafetyError("Aucune mesure exploitable : score non calculé")
 
-    braking_count = sum(1 for e in events if e["type"] == "HARSH_BRAKING")
-    cornering_count = len(events) - braking_count
-    score = max(
-        0,
-        SCORE_MAX
-        - BRAKING_PENALTY * braking_count
-        - CORNERING_PENALTY * cornering_count,
-    )
+    # Fin de fichier : un événement encore en cours est clôturé.
+    close(braking)
+
+    braking_count = len(events)
+    score = max(0, SCORE_MAX - BRAKING_PENALTY * braking_count)
 
     report = {
         "vehicle_id": vehicle_id,
@@ -213,19 +211,15 @@ def run_safety(csv_path, output_path, vehicle_id="TRUCK-DEMO"):
         ),
         "source_file": csv_path.name,
         "threshold_ms2": THRESHOLD_MS2,
-        "cornering_threshold_ms2": CORNERING_THRESHOLD_MS2,
         "samples": {"total": total, "valid": valid, "invalid": invalid},
         "events": events,
-        "summary": {
-            "harsh_braking_count": braking_count,
-            "harsh_cornering_count": cornering_count,
-        },
+        "summary": {"harsh_braking_count": braking_count},
         "score": {
             "value": score,
             "max": SCORE_MAX,
             "rule": (
-                f"{SCORE_MAX} - {BRAKING_PENALTY} x freinages violents "
-                f"- {CORNERING_PENALTY} x virages brusques, minimum 0"
+                f"{SCORE_MAX} - {BRAKING_PENALTY} x nombre de freinages "
+                "violents, minimum 0"
             ),
         },
     }
@@ -242,8 +236,8 @@ def run_safety(csv_path, output_path, vehicle_id="TRUCK-DEMO"):
         "Échantillons : %d lus, %d valides, %d invalides", total, valid, invalid
     )
     logger.info(
-        "Score du jour : %d/%d (%d freinage(s) violent(s), %d virage(s) brusque(s))",
-        score, SCORE_MAX, braking_count, cornering_count,
+        "Score du jour : %d/%d (%d freinage(s) violent(s))",
+        score, SCORE_MAX, braking_count,
     )
     volume = report["data_volume"]
     logger.info(

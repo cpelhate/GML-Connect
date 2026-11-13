@@ -95,7 +95,7 @@ def run_engine(name, engine):
         # Filet de sécurité : toute autre erreur est aussi interceptée pour
         # que la démonstration ne se termine jamais sur une trace Python.
         logger.error("Erreur inattendue (%s : %s)", type(error).__name__, error)
-    logger.error("Moteur %s ignoré", name)
+    logger.warning("Moteur %s ignoré", name)
     return None
 
 
@@ -143,10 +143,9 @@ def main(argv=None):
     else:
         logger.info(
             "Moteur Safety : OK - score %d/%d, %d freinage(s) violent(s), "
-            "%d virage(s) brusque(s), %d ligne(s) invalide(s)",
+            "%d ligne(s) invalide(s)",
             safety["score"]["value"], safety["score"]["max"],
             safety["summary"]["harsh_braking_count"],
-            safety["summary"]["harsh_cornering_count"],
             safety["samples"]["invalid"],
         )
 

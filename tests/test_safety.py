@@ -1,4 +1,4 @@
-"""Tests automatisés du moteur Safety (T5 à T7, T9, T11, T12, T15, T16).
+"""Tests automatisés du moteur Safety (T5 à T7, T9, T11, T15 à T18).
 
 Lancement depuis la racine du dépôt :
     python -m unittest discover tests
@@ -63,6 +63,7 @@ class TestSafetyAnnexe3(SafetyTestCase):
             "type": "HARSH_BRAKING",
             "timestamp": 1678880005,
             "peak_acc_y_ms2": -3.45,
+            "peak_timestamp": 1678880005,
             "duration_samples": 1,
         }])
         self.assertEqual(
@@ -84,18 +85,14 @@ class TestSafetyAnnexe3(SafetyTestCase):
         self.run_engine(DATA / "accelerometer_data.csv")
         written = json.loads(self.output.read_text(encoding="utf-8"))
         for field in ("vehicle_id", "date", "source_file", "threshold_ms2",
-                      "cornering_threshold_ms2", "samples", "events",
-                      "summary", "score", "data_volume"):
+                      "samples", "events", "summary", "score", "data_volume"):
             self.assertIn(field, written)
         self.assertEqual(written["vehicle_id"], "TRUCK-DEMO")
         self.assertEqual(written["date"], "2023-03-15")
         self.assertEqual(written["source_file"], "accelerometer_data.csv")
         self.assertEqual(written["threshold_ms2"], -2.5)
         self.assertEqual(written["samples"], {"total": 10, "valid": 10, "invalid": 0})
-        self.assertEqual(
-            written["summary"],
-            {"harsh_braking_count": 1, "harsh_cornering_count": 0},
-        )
+        self.assertEqual(written["summary"], {"harsh_braking_count": 1})
         self.assertEqual(written["score"]["value"], 90)
         self.assertEqual(written["score"]["max"], 100)
 
@@ -119,30 +116,19 @@ class TestSafetyAnnexe3(SafetyTestCase):
 class TestSafetyDonneesEtendues(SafetyTestCase):
     """Données supplémentaires (data/demo_extended)."""
 
-    def test_t11_virages_brusques_et_score_de_70(self):
+    def test_t11_freinage_sur_trois_echantillons(self):
         report, records = self.run_engine(EXTENDED / "accelerometer_data.csv")
-        self.assertEqual(events_of(report, "HARSH_CORNERING"), [
-            {"type": "HARSH_CORNERING", "timestamp": 1678880012,
-             "peak_acc_x_ms2": 3.10, "duration_samples": 2},
-            {"type": "HARSH_CORNERING", "timestamp": 1678880019,
-             "peak_acc_x_ms2": -2.95, "duration_samples": 1},
-        ])
-        self.assertEqual(events_of(report, "HARSH_BRAKING"), [
+        self.assertEqual(report["events"], [
             {"type": "HARSH_BRAKING", "timestamp": 1678880005,
-             "peak_acc_y_ms2": -3.45, "duration_samples": 1},
+             "peak_acc_y_ms2": -3.45, "peak_timestamp": 1678880005,
+             "duration_samples": 1},
+            # Le freinage commence à ...15, son pic survient à ...17.
             {"type": "HARSH_BRAKING", "timestamp": 1678880015,
-             "peak_acc_y_ms2": -4.10, "duration_samples": 3},
+             "peak_acc_y_ms2": -4.10, "peak_timestamp": 1678880017,
+             "duration_samples": 3},
         ])
-        self.assertEqual(report["score"]["value"], 70)
-        self.assertIn(
-            "1678880012 virage brusque : acc_x = 3.10 m/s² (seuil ±2.5)",
-            messages(records, "ALERT SAFETY"),
-        )
-
-    def test_t12_bruit_lateral_ignore(self):
-        path = self.write_csv(["1678880011,1.20,-0.20,9.80"])
-        report, _ = self.run_engine(path)
-        self.assertEqual(report["events"], [])
+        self.assertEqual(report["score"]["value"], 80)
+        self.assertEqual(len(messages(records, "ALERT SAFETY")), 2)
 
 
 class TestSafetyRobustesse(SafetyTestCase):
@@ -169,6 +155,7 @@ class TestSafetyRobustesse(SafetyTestCase):
             "type": "HARSH_BRAKING",
             "timestamp": 1678880015,
             "peak_acc_y_ms2": -4.10,
+            "peak_timestamp": 1678880017,
             "duration_samples": 2,
         }])
         self.assertEqual(report["samples"]["invalid"], 1)
@@ -208,6 +195,40 @@ class TestSafetyRobustesse(SafetyTestCase):
         report, _ = self.run_engine(self.write_csv(lines))
         self.assertEqual(report["summary"]["harsh_braking_count"], 11)
         self.assertEqual(report["score"]["value"], 0)
+
+    def test_t17_horodatage_a_la_milliseconde(self):
+        path = self.write_csv([
+            "1678880000.00,0.10,0.00,9.80",
+            "1678880000.01,0.10,-3.00,9.80",
+            "1678880000.02,0.10,-3.20,9.80",
+            "1678880000.03,0.10,0.00,9.80",
+        ])
+        report, _ = self.run_engine(path)
+        self.assertEqual(report["samples"]["valid"], 4)
+        braking = events_of(report, "HARSH_BRAKING")
+        self.assertEqual(len(braking), 1)
+        self.assertEqual(braking[0]["timestamp"], 1678880000.01)
+        self.assertEqual(braking[0]["peak_timestamp"], 1678880000.02)
+        self.assertEqual(braking[0]["duration_samples"], 2)
+
+    def test_valeur_nan_ignoree(self):
+        path = self.write_csv([
+            "1678880000,0.10,nan,9.80",
+            "1678880001,0.10,-3.00,9.80",
+        ])
+        report, _ = self.run_engine(path)
+        self.assertEqual(report["samples"]["invalid"], 1)
+        self.assertEqual(report["summary"]["harsh_braking_count"], 1)
+
+    def test_t18_aucune_mesure_valide_pas_de_score(self):
+        path = self.write_csv(["abc,0.10,-3.00,9.80", "1678880001,0.10"])
+        # assertLogs capture les deux avertissements de lignes invalides.
+        with self.assertLogs("gml.safety", level="WARNING"):
+            with self.assertRaises(safety_engine.SafetyError) as context:
+                safety_engine.run_safety(path, self.output)
+        self.assertIn("Aucune mesure exploitable", str(context.exception))
+        # Aucun rapport n'est écrit : on ne transmet jamais de score sans mesure.
+        self.assertFalse(self.output.exists())
 
 
 if __name__ == "__main__":
