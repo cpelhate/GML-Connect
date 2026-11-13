@@ -63,6 +63,7 @@ class TestSafetyAnnexe3(SafetyTestCase):
             "type": "HARSH_BRAKING",
             "timestamp": 1678880005,
             "peak_acc_y_ms2": -3.45,
+            "peak_timestamp": 1678880005,
             "duration_samples": 1,
         }])
         self.assertEqual(
@@ -119,9 +120,12 @@ class TestSafetyDonneesEtendues(SafetyTestCase):
         report, records = self.run_engine(EXTENDED / "accelerometer_data.csv")
         self.assertEqual(report["events"], [
             {"type": "HARSH_BRAKING", "timestamp": 1678880005,
-             "peak_acc_y_ms2": -3.45, "duration_samples": 1},
+             "peak_acc_y_ms2": -3.45, "peak_timestamp": 1678880005,
+             "duration_samples": 1},
+            # Le freinage commence à ...15, son pic survient à ...17.
             {"type": "HARSH_BRAKING", "timestamp": 1678880015,
-             "peak_acc_y_ms2": -4.10, "duration_samples": 3},
+             "peak_acc_y_ms2": -4.10, "peak_timestamp": 1678880017,
+             "duration_samples": 3},
         ])
         self.assertEqual(report["score"]["value"], 80)
         self.assertEqual(len(messages(records, "ALERT SAFETY")), 2)
@@ -151,6 +155,7 @@ class TestSafetyRobustesse(SafetyTestCase):
             "type": "HARSH_BRAKING",
             "timestamp": 1678880015,
             "peak_acc_y_ms2": -4.10,
+            "peak_timestamp": 1678880017,
             "duration_samples": 2,
         }])
         self.assertEqual(report["samples"]["invalid"], 1)
@@ -203,6 +208,7 @@ class TestSafetyRobustesse(SafetyTestCase):
         braking = events_of(report, "HARSH_BRAKING")
         self.assertEqual(len(braking), 1)
         self.assertEqual(braking[0]["timestamp"], 1678880000.01)
+        self.assertEqual(braking[0]["peak_timestamp"], 1678880000.02)
         self.assertEqual(braking[0]["duration_samples"], 2)
 
     def test_valeur_nan_ignoree(self):

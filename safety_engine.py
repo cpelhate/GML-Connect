@@ -87,10 +87,16 @@ def _track(current, timestamp, value, exceeded):
     if exceeded:
         if current is None:
             # Début d'un nouvel événement.
-            return {"timestamp": timestamp, "peak": value, "duration_samples": 1}, None
+            return {
+                "timestamp": timestamp,
+                "peak": value,
+                "peak_timestamp": timestamp,
+                "duration_samples": 1,
+            }, None
         current["duration_samples"] += 1
         if abs(value) > abs(current["peak"]):
             current["peak"] = value  # le pic est la valeur la plus forte
+            current["peak_timestamp"] = timestamp
         return current, None
     return None, current
 
@@ -136,6 +142,7 @@ def run_safety(csv_path, output_path, vehicle_id="TRUCK-DEMO"):
             "type": "HARSH_BRAKING",
             "timestamp": event["timestamp"],  # horodatage du début de l'événement
             "peak_acc_y_ms2": event["peak"],
+            "peak_timestamp": event["peak_timestamp"],  # instant du pic
             "duration_samples": event["duration_samples"],
         })
         logger.log(
