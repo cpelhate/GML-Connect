@@ -95,7 +95,7 @@ def run_engine(name, engine):
         # Filet de sécurité : toute autre erreur est aussi interceptée pour
         # que la démonstration ne se termine jamais sur une trace Python.
         logger.error("Erreur inattendue (%s : %s)", type(error).__name__, error)
-    logger.error("Moteur %s ignoré", name)
+    logger.warning("Moteur %s ignoré", name)
     return None
 
 

@@ -1,17 +1,17 @@
-2026-11-13 14:59:56 [INFO] ===== POC GML Edge - exécution du 2026-11-13 14:59:56 - données : data =====
-2026-11-13 14:59:56 [INFO] --- Moteur ZFE (Geo) ---
-2026-11-13 14:59:56 [INFO] Polygone chargé : 5 sommets, bounding box lat 45.7300 à 45.7900, lon 4.8000 à 4.8800
-2026-11-13 14:59:56 [INFO] #1 08:00:00 OUT (hors bounding box)
-2026-11-13 14:59:56 [INFO] #2 08:00:10 OUT (hors bounding box)
-2026-11-13 14:59:56 [INFO] #3 08:00:20 OUT (dans la bounding box, hors polygone) - écart : énoncé attend « IN (Bordure) »
-2026-11-13 14:59:56 [ALERT ZFE] #4 08:00:30 lat 45.7600 lon 4.8357 : entrée en zone à faibles émissions
-2026-11-13 14:59:56 [INFO] #5 08:00:40 IN (déjà en zone, pas de nouvelle alerte)
-2026-11-13 14:59:56 [INFO] --- Moteur Safety (Physics) ---
-2026-11-13 14:59:56 [ALERT SAFETY] 1678880005 freinage violent : acc_y = -3.45 m/s² (seuil -2.5)
-2026-11-13 14:59:56 [INFO] Échantillons : 10 lus, 10 valides, 0 invalides
-2026-11-13 14:59:56 [INFO] Score du jour : 90/100 (1 freinage(s) violent(s), 0 virage(s) brusque(s))
-2026-11-13 14:59:56 [INFO] Volume brut estimé : 104 400 000 octets/jour (100 Hz, 10 h) ; agrégat : 591 octets ; réduction d'un facteur 176 650
-2026-11-13 14:59:56 [INFO] Rapport écrit : output/daily_score.json
-2026-11-13 14:59:56 [INFO] --- Récapitulatif ---
-2026-11-13 14:59:56 [INFO] Moteur ZFE    : OK - 5 point(s), 1 alerte(s), 0 sortie(s), 0 point(s) ignoré(s), 1 écart(s) avec l'énoncé
-2026-11-13 14:59:56 [INFO] Moteur Safety : OK - score 90/100, 1 freinage(s) violent(s), 0 virage(s) brusque(s), 0 ligne(s) invalide(s)
+2026-11-13 22:09:29 [INFO] ===== POC GML Edge - exécution du 2026-11-13 22:09:29 - données : data =====
+2026-11-13 22:09:29 [INFO] --- Moteur ZFE (Geo) ---
+2026-11-13 22:09:29 [INFO] Polygone chargé : 5 sommets, bounding box lat 45.7300 à 45.7900, lon 4.8000 à 4.8800
+2026-11-13 22:09:29 [INFO] #1 08:00:00 OUT (hors bounding box)
+2026-11-13 22:09:29 [INFO] #2 08:00:10 OUT (hors bounding box)
+2026-11-13 22:09:29 [INFO] #3 08:00:20 OUT (dans la bounding box, hors polygone) - écart : énoncé attend « IN (Bordure) »
+2026-11-13 22:09:29 [ALERT ZFE] #4 08:00:30 lat 45.7600 lon 4.8357 : entrée en zone à faibles émissions
+2026-11-13 22:09:29 [INFO] #5 08:00:40 IN (déjà en zone, pas de nouvelle alerte)
+2026-11-13 22:09:29 [INFO] --- Moteur Safety (Physics) ---
+2026-11-13 22:09:29 [ALERT SAFETY] 1678880005 freinage violent : acc_y = -3.45 m/s² (seuil -2.5)
+2026-11-13 22:09:29 [INFO] Échantillons : 10 lus, 10 valides, 0 invalides
+2026-11-13 22:09:29 [INFO] Score du jour : 90/100 (1 freinage(s) violent(s))
+2026-11-13 22:09:29 [INFO] Volume brut estimé : 104 400 000 octets/jour (100 Hz, 10 h) ; agrégat : 548 octets ; réduction d'un facteur 190 511
+2026-11-13 22:09:29 [INFO] Rapport écrit : output/daily_score.json
+2026-11-13 22:09:29 [INFO] --- Récapitulatif ---
+2026-11-13 22:09:29 [INFO] Moteur ZFE    : OK - 5 point(s), 1 alerte(s), 0 sortie(s), 0 point(s) ignoré(s), 1 écart(s) avec l'énoncé
+2026-11-13 22:09:29 [INFO] Moteur Safety : OK - score 90/100, 1 freinage(s) violent(s), 0 ligne(s) invalide(s)
