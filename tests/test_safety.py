@@ -191,6 +191,29 @@ class TestSafetyRobustesse(SafetyTestCase):
         self.assertEqual(report["summary"]["harsh_braking_count"], 11)
         self.assertEqual(report["score"]["value"], 0)
 
+    def test_t17_horodatage_a_la_milliseconde(self):
+        path = self.write_csv([
+            "1678880000.00,0.10,0.00,9.80",
+            "1678880000.01,0.10,-3.00,9.80",
+            "1678880000.02,0.10,-3.20,9.80",
+            "1678880000.03,0.10,0.00,9.80",
+        ])
+        report, _ = self.run_engine(path)
+        self.assertEqual(report["samples"]["valid"], 4)
+        braking = events_of(report, "HARSH_BRAKING")
+        self.assertEqual(len(braking), 1)
+        self.assertEqual(braking[0]["timestamp"], 1678880000.01)
+        self.assertEqual(braking[0]["duration_samples"], 2)
+
+    def test_valeur_nan_ignoree(self):
+        path = self.write_csv([
+            "1678880000,0.10,nan,9.80",
+            "1678880001,0.10,-3.00,9.80",
+        ])
+        report, _ = self.run_engine(path)
+        self.assertEqual(report["samples"]["invalid"], 1)
+        self.assertEqual(report["summary"]["harsh_braking_count"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()

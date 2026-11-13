@@ -12,6 +12,7 @@ de saturer le forfait 4G (contrainte C5).
 import csv
 import json
 import logging
+import math
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -58,9 +59,17 @@ def _parse_row(row):
     values = []
     for name, raw in zip(EXPECTED_HEADER, row):
         try:
-            values.append(int(raw) if name == "timestamp" else float(raw))
+            number = float(raw)
         except ValueError:
             raise ValueError(f"{name} non numérique") from None
+        # « nan » et « inf » sont acceptés par float() : on les refuse.
+        if not math.isfinite(number):
+            raise ValueError(f"{name} non fini")
+        # À 100 Hz, l'horodatage a des décimales (1678880000.01).
+        # Un horodatage entier reste un entier dans le JSON (1678880005).
+        if name == "timestamp" and number.is_integer():
+            number = int(number)
+        values.append(number)
     return tuple(values)
 
 
